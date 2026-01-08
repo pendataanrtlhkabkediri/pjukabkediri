@@ -152,6 +152,87 @@
       background: #9ca3af;
     }
 
+    .upload-section {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    .upload-section h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .upload-box {
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .upload-box:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .upload-box.dragover {
+      border-color: #3b82f6;
+      background: #dbeafe;
+    }
+
+    .upload-box input[type="file"] {
+      display: none;
+    }
+
+    .upload-icon {
+      font-size: 2rem;
+      color: #3b82f6;
+      margin-bottom: 0.5rem;
+    }
+
+    .upload-text {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+
+    .upload-hint {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .upload-result {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .upload-result.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+
+    .upload-result.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+
+    .upload-result.info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #3b82f6;
+    }
+
     .filters {
       padding: 1.5rem;
       flex: 1;
@@ -452,6 +533,20 @@
           <div class="legend-icon gray"></div>
           <span>Lampu tidak tersambung (abu-abu)</span>
         </div>
+      </div>
+
+      <!-- Upload Section -->
+      <div class="upload-section">
+        <h3><i class="fas fa-cloud-upload-alt"></i> Upload KML Desa</h3>
+
+        <div class="upload-box" id="uploadBox">
+          <input type="file" id="fileInput" accept=".kml" />
+          <div class="upload-icon"><i class="fas fa-file-upload"></i></div>
+          <div class="upload-text">Klik atau drag & drop file KML</div>
+          <div class="upload-hint">Format: Ds. [Nama Desa] Kec. [Nama Kecamatan].csv.kml</div>
+        </div>
+
+        <div id="uploadResult"></div>
       </div>
 
       <!-- Filters -->
@@ -856,8 +951,386 @@
       });
     }
 
+    // =====================================================
+    // UPLOAD KML FEATURE
+    // =====================================================
+
+    function setupUploadFeature() {
+      const uploadBox = document.getElementById('uploadBox');
+      const fileInput = document.getElementById('fileInput');
+      const uploadResult = document.getElementById('uploadResult');
+
+      // Click to upload
+      uploadBox.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      // Drag & drop
+      uploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadBox.classList.add('dragover');
+      });
+
+      uploadBox.addEventListener('dragleave', () => {
+        uploadBox.classList.remove('dragover');
+      });
+
+      uploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadBox.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFileUpload(files[0]);
+        }
+      });
+
+      // File input change
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFileUpload(e.target.files[0]);
+        }
+      });
+    }
+
+    function handleFileUpload(file) {
+      const uploadResult = document.getElementById('uploadResult');
+
+      // Validate file type
+      if (!file.name.endsWith('.kml')) {
+        uploadResult.innerHTML = `
+          <div class="upload-result error">
+            <i class="fas fa-exclamation-circle"></i> Error: File harus berformat .kml
+          </div>
+        `;
+        return;
+      }
+
+      // Show processing
+      uploadResult.innerHTML = `
+        <div class="upload-result info">
+          <i class="fas fa-spinner fa-spin"></i> Memproses ${file.name}...
+        </div>
+      `;
+
+      // Read file
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const kmlText = e.target.result;
+          processKMLFile(kmlText, file.name);
+        } catch (error) {
+          uploadResult.innerHTML = `
+            <div class="upload-result error">
+              <i class="fas fa-exclamation-circle"></i> Error: ${error.message}
+            </div>
+          `;
+        }
+      };
+
+      reader.onerror = function() {
+        uploadResult.innerHTML = `
+          <div class="upload-result error">
+            <i class="fas fa-exclamation-circle"></i> Error membaca file
+          </div>
+        `;
+      };
+
+      reader.readAsText(file);
+    }
+
+    function normalizeText(text) {
+      if (!text) return "";
+      return text.toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function extractDesaKecamatan(filename) {
+      // Format: Ds. [Nama Desa] Kec. [Nama Kecamatan].csv.kml
+      const normalized = normalizeText(filename);
+
+      let desa = "";
+      let kecamatan = "";
+
+      // Extract desa
+      const desaMatch = normalized.match(/(?:desa|ds\.?)\s+([a-z\s]+?)\s+(?:kec|kecamatan)/);
+      if (desaMatch) {
+        desa = desaMatch[1].trim();
+      }
+
+      // Extract kecamatan
+      const kecMatch = normalized.match(/(?:kec|kecamatan)\.?\s+([a-z\s]+?)(?:\.csv)?\.kml/);
+      if (kecMatch) {
+        kecamatan = kecMatch[1].trim();
+      }
+
+      return { desa, kecamatan };
+    }
+
+    function checkLampBoxConnection(lampText, box) {
+      if (!lampText || !box) return false;
+
+      const lampNorm = normalizeText(lampText);
+      const boxNumber = box.box_number;
+      const desa = box.desa;
+
+      if (!boxNumber || !desa) return false;
+
+      const desaNorm = normalizeText(desa);
+
+      // Method 1: "box [number]" + desa name
+      const hasBoxNumber = lampNorm.includes(`box ${boxNumber}`) || lampNorm.includes(`box${boxNumber}`);
+      const hasDesa = lampNorm.includes(desaNorm);
+
+      if (hasBoxNumber && hasDesa) {
+        return true;
+      }
+
+      // Method 2: Exact match dengan box_identifier
+      const boxIdNorm = normalizeText(box.box_identifier || '');
+      if (boxIdNorm && lampNorm.includes(boxIdNorm)) {
+        return true;
+      }
+
+      return false;
+    }
+
+    function processKMLFile(kmlText, filename) {
+      const uploadResult = document.getElementById('uploadResult');
+
+      try {
+        // Parse KML XML
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+
+        // Check for parse errors
+        const parseError = xmlDoc.querySelector('parsererror');
+        if (parseError) {
+          throw new Error('File KML tidak valid');
+        }
+
+        // Extract desa & kecamatan from filename
+        const { desa, kecamatan } = extractDesaKecamatan(filename);
+
+        if (!desa || !kecamatan) {
+          throw new Error('Tidak dapat mendeteksi desa/kecamatan dari nama file. Format: Ds. [Desa] Kec. [Kecamatan].csv.kml');
+        }
+
+        // Normalize untuk matching
+        const desaNorm = normalizeText(desa);
+        const kecamatanNorm = normalizeText(kecamatan);
+
+        // Find matching kecamatan in existing data
+        const matchedKec = pjuData.kecamatan.find(k => normalizeText(k) === kecamatanNorm);
+
+        if (!matchedKec) {
+          throw new Error(`Kecamatan "${kecamatan}" tidak ditemukan. Kecamatan yang tersedia: ${pjuData.kecamatan.join(', ')}`);
+        }
+
+        // Get relevant boxes for this kecamatan & desa
+        const relevantBoxes = pjuData.boxes.filter(b =>
+          normalizeText(b.kecamatan) === kecamatanNorm &&
+          normalizeText(b.desa) === desaNorm
+        );
+
+        // Parse placemarks
+        const placemarks = xmlDoc.querySelectorAll('Placemark');
+        const newLampu = [];
+        let connectedCount = 0;
+        let disconnectedCount = 0;
+
+        placemarks.forEach(placemark => {
+          const nameElem = placemark.querySelector('name');
+          const coordsElem = placemark.querySelector('coordinates');
+
+          if (!nameElem || !coordsElem) return;
+
+          const name = nameElem.textContent.trim();
+          const coords = coordsElem.textContent.trim().split(',');
+
+          if (coords.length < 2) return;
+
+          const lon = parseFloat(coords[0]);
+          const lat = parseFloat(coords[1]);
+
+          if (isNaN(lon) || isNaN(lat)) return;
+
+          // Extract ExtendedData
+          let namaAset = "";
+          let lampuType = "";
+          let jenisJalan = "";
+
+          const dataElements = placemark.querySelectorAll('Data');
+          dataElements.forEach(data => {
+            const dataName = data.getAttribute('name');
+            const value = data.querySelector('value');
+
+            if (value && value.textContent) {
+              const valueText = value.textContent.trim();
+              if (dataName === 'nama aset') namaAset = valueText;
+              else if (dataName === 'lampu') lampuType = valueText;
+              else if (dataName === 'Jenis Jalan') jenisJalan = valueText;
+            }
+          });
+
+          // Match text: prioritas nama aset > name
+          const matchText = namaAset || name;
+
+          // Check connection dengan box yang relevan
+          let connected = false;
+          let matchedBox = null;
+
+          for (const box of relevantBoxes) {
+            if (checkLampBoxConnection(matchText, box)) {
+              connected = true;
+              matchedBox = box;
+              break;
+            }
+          }
+
+          if (connected) {
+            connectedCount++;
+          } else {
+            disconnectedCount++;
+          }
+
+          // Create lampu object
+          const lampu = {
+            name: name,
+            nama_aset: namaAset,
+            kecamatan: matchedKec,
+            desa: desa,
+            longitude: lon,
+            latitude: lat,
+            lampu_type: lampuType,
+            jenis_jalan: jenisJalan,
+            box_name: matchedBox ? matchedBox.name : 'TIDAK TERSAMBUNG',
+            box_key: matchedBox ? matchedBox.box_key : null,
+            connected: connected,
+            box_id: matchedBox ? pjuData.boxes.indexOf(matchedBox) + 1 : null,
+            color: matchedBox ? matchedBox.color : null,
+            color_hsl: matchedBox ? matchedBox.color_hsl : null,
+            color_hex: matchedBox ? matchedBox.color_hex : '#9ca3af'
+          };
+
+          newLampu.push(lampu);
+        });
+
+        if (newLampu.length === 0) {
+          throw new Error('Tidak ada data lampu yang valid dalam file KML');
+        }
+
+        // Add to existing data
+        pjuData.lampu.push(...newLampu);
+
+        // Update statistics
+        pjuData.statistics.total_lampu += newLampu.length;
+        pjuData.statistics.lampu_tersambung += connectedCount;
+        pjuData.statistics.lampu_tidak_tersambung += disconnectedCount;
+        pjuData.statistics.persentase_tersambung = (
+          (pjuData.statistics.lampu_tersambung / pjuData.statistics.total_lampu) * 100
+        ).toFixed(1);
+
+        // Update layers
+        updateLayersWithNewLampu(newLampu);
+
+        // Update statistics display
+        updateStatistics();
+
+        // Show success message
+        uploadResult.innerHTML = `
+          <div class="upload-result success">
+            <i class="fas fa-check-circle"></i>
+            <strong>Berhasil!</strong><br/>
+            Desa: ${desa.toUpperCase()}<br/>
+            Kecamatan: ${kecamatan.toUpperCase()}<br/>
+            Total: ${newLampu.length} lampu<br/>
+            Tersambung: ${connectedCount} (${((connectedCount/newLampu.length)*100).toFixed(1)}%)<br/>
+            Tidak Tersambung: ${disconnectedCount}
+          </div>
+        `;
+
+        // Zoom to new data
+        if (newLampu.length > 0) {
+          const extent = ol.extent.createEmpty();
+          newLampu.forEach(l => {
+            ol.extent.extend(extent, ol.proj.fromLonLat([l.longitude, l.latitude]));
+          });
+          map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 15 });
+        }
+
+      } catch (error) {
+        uploadResult.innerHTML = `
+          <div class="upload-result error">
+            <i class="fas fa-exclamation-circle"></i> Error: ${error.message}
+          </div>
+        `;
+        console.error('KML Processing Error:', error);
+      }
+    }
+
+    function updateLayersWithNewLampu(newLampu) {
+      // Separate connected and disconnected
+      const connected = newLampu.filter(l => l.connected);
+      const disconnected = newLampu.filter(l => !l.connected);
+
+      // Add to connected layer
+      if (connected.length > 0) {
+        const connectedFeatures = connected.map(lampu => {
+          const color = lampu.color_hsl || lampu.color || '#10b981';
+
+          const feature = new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.fromLonLat([lampu.longitude, lampu.latitude])),
+            type: 'lampu',
+            name: lampu.name,
+            kecamatan: lampu.kecamatan,
+            desa: lampu.desa,
+            longitude: lampu.longitude,
+            latitude: lampu.latitude,
+            lampu_type: lampu.lampu_type,
+            jenis_jalan: lampu.jenis_jalan,
+            connected: lampu.connected,
+            box_name: lampu.box_name,
+            color: color
+          });
+
+          return feature;
+        });
+
+        connectedLayer.getSource().addFeatures(connectedFeatures);
+      }
+
+      // Add to disconnected layer
+      if (disconnected.length > 0) {
+        const disconnectedFeatures = disconnected.map(lampu => {
+          const color = '#9ca3af';
+
+          const feature = new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.fromLonLat([lampu.longitude, lampu.latitude])),
+            type: 'lampu',
+            name: lampu.name,
+            kecamatan: lampu.kecamatan,
+            desa: lampu.desa,
+            longitude: lampu.longitude,
+            latitude: lampu.latitude,
+            lampu_type: lampu.lampu_type,
+            jenis_jalan: lampu.jenis_jalan,
+            connected: lampu.connected,
+            box_name: lampu.box_name,
+            color: color
+          });
+
+          return feature;
+        });
+
+        disconnectedLayer.getSource().addFeatures(disconnectedFeatures);
+      }
+    }
+
     // Initialize on load
-    window.addEventListener('load', loadData);
+    window.addEventListener('load', function() {
+      loadData();
+      setupUploadFeature();
+    });
   </script>
 </body>
 </html>
