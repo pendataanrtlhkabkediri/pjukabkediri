@@ -1,19 +1,19 @@
 """
-Sistem Analisis PJU Multi-Kecamatan - ENHANCED VERSION
+Sistem Analisis PJU Multi-Kecamatan
 Kabupaten Kediri - 2025
 
-Fitur Baru:
-- Matching box panel menggunakan kombinasi "nama aset" dan "ruas jalan/desa"
-- Setiap box dan lampunya punya warna unik (gradient colors)
-- Warna kontras untuk box-box yang berdekatan
-- Support 1000+ box panel dengan color mapping cerdas
+Fitur:
+- Analisis relasi Box Panel dan Lampu PJU
+- Support multiple kecamatan (Kunjang, Mojo, Pagu)
+- Generate SQL database
+- Generate JSON untuk visualisasi web
+- Support upload KML baru dengan auto-detect relasi
 """
 
 import xml.etree.ElementTree as ET
 import re
 import os
 import json
-import math
 from pathlib import Path
 
 # Namespace untuk KML
@@ -50,113 +50,53 @@ KECAMATAN_CONFIG = {
     'PAGU': {
         'folder': 'PAGU',
         'box_file': 'kec pagu.csv.kml',
-        'lampu_files': []
+        'lampu_files': []  # Belum ada data lampu
     }
 }
 
 
-def generate_contrasting_colors(num_colors):
-    """
-    Generate color palette dengan HSL untuk distribusi warna yang merata
-    dan kontras untuk box-box yang berdekatan
-    """
-    colors = []
-
-    # Gunakan golden angle untuk distribusi hue yang optimal
-    golden_angle = 137.508  # degrees
-
-    for i in range(num_colors):
-        # Hue: distribusi merata dengan golden angle
-        hue = (i * golden_angle) % 360
-
-        # Saturation: variasi antara 65-95% untuk warna yang vibrant
-        saturation = 65 + (i % 4) * 10
-
-        # Lightness: variasi antara 45-65% untuk visibility
-        lightness = 45 + (i % 3) * 10
-
-        colors.append({
-            'hsl': f'hsl({hue:.0f}, {saturation}%, {lightness}%)',
-            'hue': hue,
-            'saturation': saturation,
-            'lightness': lightness
-        })
-
-    return colors
-
-
-def hsl_to_hex(h, s, l):
-    """Convert HSL to HEX color"""
-    s = s / 100
-    l = l / 100
-
-    c = (1 - abs(2 * l - 1)) * s
-    x = c * (1 - abs((h / 60) % 2 - 1))
-    m = l - c / 2
-
-    if 0 <= h < 60:
-        r, g, b = c, x, 0
-    elif 60 <= h < 120:
-        r, g, b = x, c, 0
-    elif 120 <= h < 180:
-        r, g, b = 0, c, x
-    elif 180 <= h < 240:
-        r, g, b = 0, x, c
-    elif 240 <= h < 300:
-        r, g, b = x, 0, c
-    else:
-        r, g, b = c, 0, x
-
-    r = int((r + m) * 255)
-    g = int((g + m) * 255)
-    b = int((b + m) * 255)
-
-    return f'#{r:02x}{g:02x}{b:02x}'
-
-
-def normalize_text(text):
-    """Normalize text untuk matching (lowercase, remove extra spaces)"""
+def extract_box_name(text):
+    """Extract box name dari nama placemark"""
     if not text:
-        return ""
-    return re.sub(r'\s+', ' ', text.lower().strip())
+        return None
 
-
-def extract_box_info(text):
-    """
-    Extract box number dan desa dari text
-    Returns: (box_number, desa_name)
-    """
-    if not text:
-        return None, None
-
-    text_norm = normalize_text(text)
-
-    # Extract box number
-    box_match = re.search(r'box\s*(\d+)', text_norm)
-    box_number = box_match.group(1) if box_match else None
-
-    # Extract desa name - lebih flexible
-    desa_patterns = [
-        r'desa\s+(\w+)',
-        r'ds\.?\s+(\w+)',
+    # Pattern umum: Box [nomor] atau Box[nomor]
+    patterns = [
+        r'Box\s*(\d+)',  # Box 1, Box1
+        r'box\s*(\d+)',  # box 1, box1
+        r'BOX\s*(\d+)',  # BOX 1, BOX1
     ]
 
-    desa_name = None
-    for pattern in desa_patterns:
-        desa_match = re.search(pattern, text_norm)
-        if desa_match:
-            desa_name = desa_match.group(1)
-            break
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return f"Box {match.group(1)}"
 
-    return box_number, desa_name
+    return None
+
+
+def normalize_desa_name(text):
+    """Normalize nama desa dari filename atau text"""
+    if not text:
+        return ""
+
+    # Remove common prefixes
+    text = re.sub(r'^(Desa|Ds\.?|DESA)\s+', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Kecamatan\s+\w+', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Kec\.?\s+\w+', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\.csv\.kml$', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\.kml$', '', text, flags=re.IGNORECASE)
+
+    return text.strip()
 
 
 def parse_kml_boxes(filepath, kecamatan_name):
-    """Parse file KML Box Panel dengan ExtendedData"""
+    """Parse file KML Box Panel"""
     tree = ET.parse(filepath)
     root = tree.getroot()
 
     boxes = []
+    box_counter = {}
 
     for placemark in root.findall('.//kml:Placemark', ns):
         name_elem = placemark.find('kml:name', ns)
@@ -167,92 +107,45 @@ def parse_kml_boxes(filepath, kecamatan_name):
             coord_text = coords_elem.text.strip()
 
             try:
-                lon, lat, *_ = coord_text.split(',')
+                lon, lat, alt = coord_text.split(',')
 
-                # Extract dari ExtendedData
-                ruas_jalan_desa = ""
-                for data in placemark.findall('.//kml:Data', ns):
-                    data_name = data.get('name')
-                    value = data.find('kml:value', ns)
+                # Extract desa name dan box number
+                box_num = extract_box_name(name)
 
-                    if data_name == 'ruas jalan/ desa' and value is not None:
-                        ruas_jalan_desa = value.text.strip() if value.text else ""
-                        break
+                # Extract desa from name
+                desa_match = re.search(r'(Desa|Ds\.?)\s+(\w+)', name, re.IGNORECASE)
+                desa = desa_match.group(2) if desa_match else "Unknown"
 
-                # Prioritas: gunakan ruas jalan/desa jika ada, fallback ke name
-                box_identifier = ruas_jalan_desa if ruas_jalan_desa else name
+                # Create unique box identifier
+                box_key = f"{desa}_{box_num}" if box_num else name
 
-                # Extract box number dan desa
-                box_number, desa = extract_box_info(box_identifier)
-
-                # Create unique key
-                if box_number and desa:
-                    box_key = f"{desa}_box_{box_number}"
-                    display_name = f"Box {box_number} Desa {desa.title()}"
-                else:
-                    box_key = normalize_text(box_identifier)
-                    display_name = box_identifier
+                if box_key not in box_counter:
+                    box_counter[box_key] = 0
+                box_counter[box_key] += 1
 
                 boxes.append({
-                    'original_name': name,
-                    'name': display_name,
-                    'box_identifier': box_identifier,
+                    'name': name,
                     'kecamatan': kecamatan_name,
-                    'desa': desa if desa else "Unknown",
-                    'box_number': box_number,
+                    'desa': desa,
+                    'box_number': box_num,
                     'longitude': float(lon),
                     'latitude': float(lat),
-                    'box_key': box_key,
-                    'color': None  # Will be assigned later
+                    'box_key': box_key
                 })
-            except (ValueError, AttributeError) as e:
+            except ValueError:
                 continue
 
     return boxes
 
 
-def check_lamp_box_connection(lamp_text, box):
-    """
-    Check apakah lampu terhubung dengan box
-    Matching lebih flexible: box number + desa name
-    """
-    if not lamp_text or not box:
-        return False
-
-    lamp_norm = normalize_text(lamp_text)
-    box_number = box.get('box_number')
-    desa = box.get('desa')
-
-    if not box_number or not desa:
-        return False
-
-    desa_norm = normalize_text(desa)
-
-    # Check 1: Ada "box [number]" dan nama desa yang sama
-    has_box_number = f"box {box_number}" in lamp_norm or f"box{box_number}" in lamp_norm
-    has_desa = desa_norm in lamp_norm
-
-    if has_box_number and has_desa:
-        return True
-
-    # Check 2: Exact match dengan box_identifier
-    box_id_norm = normalize_text(box.get('box_identifier', ''))
-    if box_id_norm and box_id_norm in lamp_norm:
-        return True
-
-    return False
-
-
 def parse_kml_lampu(filepath, boxes, kecamatan_name):
-    """Parse file KML lampu PJU dengan matching yang lebih baik"""
+    """Parse file KML lampu PJU"""
     tree = ET.parse(filepath)
     root = tree.getroot()
 
     # Extract desa name from filename
     filename = os.path.basename(filepath)
-    desa_from_file = normalize_text(filename)
-    desa_from_file = re.sub(r'(desa|ds\.?|kec\.?|kecamatan|\.csv|\.kml)', '', desa_from_file)
-    desa_from_file = desa_from_file.strip()
+    desa_name = normalize_desa_name(filename)
 
     lampu_list = []
 
@@ -265,12 +158,11 @@ def parse_kml_lampu(filepath, boxes, kecamatan_name):
             coord_text = coords_elem.text.strip()
 
             try:
-                lon, lat, *_ = coord_text.split(',')
+                lon, lat, alt = coord_text.split(',')
             except ValueError:
                 continue
 
-            # Extract ExtendedData
-            nama_aset = ""
+            # Extract data dari ExtendedData
             lampu_type = ""
             jenis_jalan = ""
 
@@ -278,56 +170,60 @@ def parse_kml_lampu(filepath, boxes, kecamatan_name):
                 data_name = data.get('name')
                 value = data.find('kml:value', ns)
 
-                if value is not None and value.text:
-                    value_text = value.text.strip()
-                    if data_name == 'nama aset':
-                        nama_aset = value_text
-                    elif data_name == 'lampu':
-                        lampu_type = value_text
-                    elif data_name == 'Jenis Jalan':
-                        jenis_jalan = value_text
+                if data_name == 'lampu' and value is not None:
+                    lampu_type = value.text.strip() if value.text else ""
+                elif data_name == 'Jenis Jalan' and value is not None:
+                    jenis_jalan = value.text.strip() if value.text else ""
 
-            # Prioritas matching: nama aset > name
-            match_text = nama_aset if nama_aset else name
-
-            # Check connection dengan semua box
+            # Check relasi dengan box
             connected = False
             box_id = None
-            matched_box = None
+            matched_box_name = None
 
-            for idx, box in enumerate(boxes):
-                if check_lamp_box_connection(match_text, box):
-                    connected = True
-                    box_id = idx + 1
-                    matched_box = box
-                    break
+            # Extract box info from lampu name
+            box_num = extract_box_name(name)
+
+            if box_num:
+                # Cari box yang match
+                for idx, box in enumerate(boxes):
+                    # Match by desa and box number
+                    if (box['box_number'] == box_num and
+                        desa_name.lower() in box['desa'].lower()):
+                        connected = True
+                        box_id = idx + 1
+                        matched_box_name = box['name']
+                        break
+
+                    # Alternative: match if box name mentioned in lampu name
+                    if box['name'].lower() in name.lower():
+                        connected = True
+                        box_id = idx + 1
+                        matched_box_name = box['name']
+                        break
 
             lampu_list.append({
                 'name': name,
-                'nama_aset': nama_aset,
                 'kecamatan': kecamatan_name,
-                'desa': desa_from_file,
+                'desa': desa_name,
                 'longitude': float(lon),
                 'latitude': float(lat),
                 'lampu_type': lampu_type,
                 'jenis_jalan': jenis_jalan,
-                'box_name': matched_box['name'] if matched_box else 'TIDAK TERSAMBUNG',
-                'box_key': matched_box['box_key'] if matched_box else None,
+                'box_name': matched_box_name if matched_box_name else 'TIDAK TERSAMBUNG',
+                'box_number': box_num,
                 'connected': connected,
-                'box_id': box_id,
-                'color': matched_box['color'] if matched_box else None
+                'box_id': box_id
             })
 
     return lampu_list
 
 
 def generate_sql(all_boxes, all_lampu):
-    """Generate SQL file untuk database dengan color information"""
+    """Generate SQL file untuk database"""
 
     sql_content = """-- =====================================================
 -- DATABASE PENERANGAN JALAN UMUM (PJU)
 -- KABUPATEN KEDIRI - MULTI KECAMATAN
--- VERSION 2.0 - WITH COLOR CODING
 -- =====================================================
 
 -- Buat database
@@ -360,20 +256,15 @@ DROP TABLE IF EXISTS box_panel;
 CREATE TABLE box_panel (
     box_id INT PRIMARY KEY AUTO_INCREMENT,
     box_name VARCHAR(200) NOT NULL,
-    original_name VARCHAR(200),
-    box_identifier VARCHAR(200),
     kecamatan_id INT NOT NULL,
     desa VARCHAR(100),
     box_number VARCHAR(20),
     longitude DECIMAL(10, 7) NOT NULL,
     latitude DECIMAL(10, 7) NOT NULL,
-    color_hex VARCHAR(7),
-    color_hsl VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (kecamatan_id) REFERENCES kecamatan(kecamatan_id),
     INDEX idx_kecamatan (kecamatan_id),
-    INDEX idx_desa (desa),
-    INDEX idx_box_key (desa, box_number)
+    INDEX idx_desa (desa)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 """
@@ -384,18 +275,13 @@ CREATE TABLE box_panel (
 
     for idx, box in enumerate(all_boxes, 1):
         name_escaped = box['name'].replace("'", "''")
-        original_escaped = box['original_name'].replace("'", "''")
-        identifier_escaped = box['box_identifier'].replace("'", "''")
         kec_id = kecamatan_id_map[box['kecamatan']]
         box_num = box['box_number'] if box['box_number'] else 'NULL'
         if box_num != 'NULL':
             box_num = f"'{box_num}'"
 
-        color_hex = box.get('color_hex', '')
-        color_hsl = box.get('color_hsl', '')
-
-        sql_content += f"""INSERT INTO box_panel (box_id, box_name, original_name, box_identifier, kecamatan_id, desa, box_number, longitude, latitude, color_hex, color_hsl)
-VALUES ({idx}, '{name_escaped}', '{original_escaped}', '{identifier_escaped}', {kec_id}, '{box['desa']}', {box_num}, {box['longitude']}, {box['latitude']}, '{color_hex}', '{color_hsl}');\n"""
+        sql_content += f"""INSERT INTO box_panel (box_id, box_name, kecamatan_id, desa, box_number, longitude, latitude)
+VALUES ({idx}, '{name_escaped}', {kec_id}, '{box['desa']}', {box_num}, {box['longitude']}, {box['latitude']});\n"""
 
     # Tabel Lampu PJU
     sql_content += """
@@ -406,7 +292,6 @@ DROP TABLE IF EXISTS lampu_pju;
 CREATE TABLE lampu_pju (
     lampu_id INT PRIMARY KEY AUTO_INCREMENT,
     lampu_name VARCHAR(200) NOT NULL,
-    nama_aset VARCHAR(200),
     kecamatan_id INT NOT NULL,
     desa VARCHAR(100) NOT NULL,
     longitude DECIMAL(10, 7) NOT NULL,
@@ -430,13 +315,12 @@ CREATE TABLE lampu_pju (
     sql_content += "\n-- Insert data Lampu PJU\n"
     for idx, lampu in enumerate(all_lampu, 1):
         name_escaped = lampu['name'].replace("'", "''")
-        nama_aset_escaped = lampu['nama_aset'].replace("'", "''") if lampu['nama_aset'] else ''
         kec_id = kecamatan_id_map[lampu['kecamatan']]
         box_id_value = str(lampu['box_id']) if lampu['box_id'] else 'NULL'
         status = 'TERSAMBUNG' if lampu['connected'] else 'TIDAK TERSAMBUNG'
 
-        sql_content += f"""INSERT INTO lampu_pju (lampu_id, lampu_name, nama_aset, kecamatan_id, desa, longitude, latitude, lampu_type, jenis_jalan, box_id, status_koneksi)
-VALUES ({idx}, '{name_escaped}', '{nama_aset_escaped}', {kec_id}, '{lampu['desa']}', {lampu['longitude']}, {lampu['latitude']}, '{lampu['lampu_type']}', '{lampu['jenis_jalan']}', {box_id_value}, '{status}');\n"""
+        sql_content += f"""INSERT INTO lampu_pju (lampu_id, lampu_name, kecamatan_id, desa, longitude, latitude, lampu_type, jenis_jalan, box_id, status_koneksi)
+VALUES ({idx}, '{name_escaped}', {kec_id}, '{lampu['desa']}', {lampu['longitude']}, {lampu['latitude']}, '{lampu['lampu_type']}', '{lampu['jenis_jalan']}', {box_id_value}, '{status}');\n"""
 
     # Views dan Queries
     sql_content += """
@@ -452,31 +336,28 @@ SELECT
     COUNT(DISTINCT lp.lampu_id) as total_lampu,
     SUM(CASE WHEN lp.status_koneksi = 'TERSAMBUNG' THEN 1 ELSE 0 END) as lampu_tersambung,
     SUM(CASE WHEN lp.status_koneksi = 'TIDAK TERSAMBUNG' THEN 1 ELSE 0 END) as lampu_tidak_tersambung,
-    ROUND(SUM(CASE WHEN lp.status_koneksi = 'TERSAMBUNG' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(lp.lampu_id), 0), 2) as persentase_tersambung
+    ROUND(SUM(CASE WHEN lp.status_koneksi = 'TERSAMBUNG' THEN 1 ELSE 0 END) * 100.0 / COUNT(lp.lampu_id), 2) as persentase_tersambung
 FROM kecamatan k
 LEFT JOIN box_panel bp ON k.kecamatan_id = bp.kecamatan_id
 LEFT JOIN lampu_pju lp ON k.kecamatan_id = lp.kecamatan_id
 GROUP BY k.kecamatan_name
 ORDER BY total_lampu DESC;
 
--- View: Ringkasan per Box Panel (with color)
+-- View: Ringkasan per Box Panel
 CREATE OR REPLACE VIEW view_box_summary AS
 SELECT
     k.kecamatan_name,
     bp.box_id,
     bp.box_name,
     bp.desa,
-    bp.box_number,
     bp.longitude,
     bp.latitude,
-    bp.color_hex,
-    bp.color_hsl,
     COUNT(lp.lampu_id) as total_lampu_tersambung
 FROM box_panel bp
 INNER JOIN kecamatan k ON bp.kecamatan_id = k.kecamatan_id
 LEFT JOIN lampu_pju lp ON bp.box_id = lp.box_id AND lp.status_koneksi = 'TERSAMBUNG'
 GROUP BY bp.box_id
-ORDER BY k.kecamatan_name, bp.desa, bp.box_number;
+ORDER BY k.kecamatan_name, bp.desa, bp.box_id;
 
 -- View: Ringkasan per Desa
 CREATE OR REPLACE VIEW view_desa_summary AS
@@ -498,7 +379,6 @@ SELECT
     k.kecamatan_name,
     lp.lampu_id,
     lp.lampu_name,
-    lp.nama_aset,
     lp.desa,
     lp.longitude,
     lp.latitude,
@@ -508,6 +388,41 @@ FROM lampu_pju lp
 INNER JOIN kecamatan k ON lp.kecamatan_id = k.kecamatan_id
 WHERE lp.status_koneksi = 'TIDAK TERSAMBUNG'
 ORDER BY k.kecamatan_name, lp.desa, lp.lampu_id;
+
+-- =====================================================
+-- STORED PROCEDURES
+-- =====================================================
+
+-- Procedure: Upload KML Baru
+DELIMITER //
+CREATE PROCEDURE sp_check_lampu_connection(
+    IN p_lampu_name VARCHAR(200),
+    IN p_desa VARCHAR(100),
+    IN p_kecamatan VARCHAR(100)
+)
+BEGIN
+    DECLARE v_box_id INT;
+    DECLARE v_connected ENUM('TERSAMBUNG', 'TIDAK TERSAMBUNG');
+
+    -- Extract box number from name
+    -- Cari box yang match
+    SELECT bp.box_id INTO v_box_id
+    FROM box_panel bp
+    INNER JOIN kecamatan k ON bp.kecamatan_id = k.kecamatan_id
+    WHERE k.kecamatan_name = p_kecamatan
+      AND bp.desa = p_desa
+      AND p_lampu_name LIKE CONCAT('%', bp.box_number, '%')
+    LIMIT 1;
+
+    IF v_box_id IS NOT NULL THEN
+        SET v_connected = 'TERSAMBUNG';
+    ELSE
+        SET v_connected = 'TIDAK TERSAMBUNG';
+    END IF;
+
+    SELECT v_box_id as box_id, v_connected as status_koneksi;
+END //
+DELIMITER ;
 
 -- =====================================================
 -- SUMMARY STATISTICS
@@ -571,10 +486,7 @@ def process_kecamatan(kecamatan_name, config):
             connected = sum(1 for l in lampu_list if l['connected'])
             not_connected = len(lampu_list) - connected
 
-            # Extract desa name for display
-            desa_display = os.path.basename(filename).replace('.csv.kml', '')
-
-            print(f"   [OK] {desa_display}: {len(lampu_list)} lampu "
+            print(f"   [OK] {normalize_desa_name(filename)}: {len(lampu_list)} lampu "
                   f"({connected} tersambung, {not_connected} tidak tersambung)")
         else:
             print(f"   [SKIP] File tidak ditemukan: {filename}")
@@ -584,7 +496,7 @@ def process_kecamatan(kecamatan_name, config):
 
 def main():
     print("=" * 60)
-    print("ANALISIS PJU MULTI-KECAMATAN - ENHANCED")
+    print("ANALISIS PJU MULTI-KECAMATAN")
     print("Kabupaten Kediri")
     print("=" * 60)
 
@@ -596,31 +508,6 @@ def main():
         boxes, lampu = process_kecamatan(kec_name, config)
         all_boxes.extend(boxes)
         all_lampu.extend(lampu)
-
-    # Generate colors untuk semua boxes
-    print(f"\n{'='*60}")
-    print("GENERATE COLOR PALETTE")
-    print(f"{'='*60}")
-
-    num_boxes = len(all_boxes)
-    colors = generate_contrasting_colors(num_boxes)
-
-    print(f"Generated {num_boxes} unique colors with optimal contrast")
-
-    # Assign colors to boxes
-    for idx, box in enumerate(all_boxes):
-        color_info = colors[idx]
-        box['color'] = color_info['hsl']
-        box['color_hsl'] = color_info['hsl']
-        box['color_hex'] = hsl_to_hex(color_info['hue'], color_info['saturation'], color_info['lightness'])
-
-    # Update lamp colors based on connected box
-    for lampu in all_lampu:
-        if lampu['connected'] and lampu['box_id']:
-            box_idx = lampu['box_id'] - 1
-            if 0 <= box_idx < len(all_boxes):
-                lampu['color'] = all_boxes[box_idx]['color']
-                lampu['color_hex'] = all_boxes[box_idx]['color_hex']
 
     # Statistik Keseluruhan
     print(f"\n{'='*60}")
@@ -686,13 +573,8 @@ def main():
     print("SELESAI!")
     print(f"{'='*60}")
     print("\nFile yang dihasilkan:")
-    print("  - pju_kabupaten_database.sql (Database SQL with colors)")
-    print("  - pju_all_data.json (Data untuk visualisasi web with colors)")
-    print("\nPerbaikan:")
-    print("  [+] Box matching menggunakan 'ruas jalan/desa' + 'nama aset'")
-    print("  [+] Setiap box punya warna unik (HSL color space)")
-    print(f"  [+] {num_boxes} warna dengan kontras optimal untuk box berdekatan")
-    print("  [+] Lampu mengikuti warna box yang terhubung")
+    print("  - pju_kabupaten_database.sql (Database SQL)")
+    print("  - pju_all_data.json (Data untuk visualisasi web)")
 
 
 if __name__ == '__main__':

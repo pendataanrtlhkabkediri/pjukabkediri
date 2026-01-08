@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Peta PJU Kabupaten Kediri - Enhanced</title>
+  <title>Peta PJU Kabupaten Kediri</title>
 
   <!-- OpenLayers CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.5.2/ol.css">
@@ -38,15 +38,6 @@
     .header p {
       opacity: 0.9;
       font-size: 0.95rem;
-    }
-
-    .header .badge {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.2);
-      padding: 0.3rem 0.8rem;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      margin-top: 0.5rem;
     }
 
     .container {
@@ -211,18 +202,24 @@
     }
 
     .legend-icon {
-      width: 16px;
-      height: 16px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      margin-right: 0.75rem;
+      margin-right: 10px;
       border: 2px solid white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
     }
 
-    .legend-icon.gradient {
-      background: linear-gradient(135deg, #ef4444, #3b82f6, #10b981, #f59e0b, #8b5cf6);
-      width: 80px;
-      border-radius: 4px;
+    .legend-icon.box {
+      background: #ef4444;
+    }
+
+    .legend-icon.connected {
+      background: #10b981;
+    }
+
+    .legend-icon.disconnected {
+      background: #f59e0b;
     }
 
     .filters {
@@ -234,21 +231,18 @@
       font-size: 1.1rem;
       margin-bottom: 1rem;
       color: #1f2937;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
     }
 
     .filter-group {
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
     }
 
     .filter-group label {
       display: block;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #4b5563;
       margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #374151;
+      font-size: 0.9rem;
     }
 
     .filter-group select {
@@ -257,7 +251,6 @@
       border: 1px solid #d1d5db;
       border-radius: 6px;
       font-size: 0.9rem;
-      background: white;
     }
 
     .checkbox-group {
@@ -270,6 +263,7 @@
       display: flex;
       align-items: center;
       font-weight: normal;
+      font-size: 0.9rem;
       cursor: pointer;
     }
 
@@ -283,6 +277,94 @@
       position: relative;
     }
 
+    /* Popup */
+    .ol-popup {
+      position: absolute;
+      background-color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      bottom: 12px;
+      left: -50px;
+      min-width: 280px;
+      max-width: 400px;
+    }
+
+    .ol-popup:after, .ol-popup:before {
+      top: 100%;
+      border: solid transparent;
+      content: " ";
+      height: 0;
+      width: 0;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .ol-popup:after {
+      border-top-color: white;
+      border-width: 10px;
+      left: 48px;
+      margin-left: -10px;
+    }
+
+    .ol-popup:before {
+      border-top-color: #e5e7eb;
+      border-width: 11px;
+      left: 48px;
+      margin-left: -11px;
+    }
+
+    .ol-popup-closer {
+      text-decoration: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.2rem;
+      color: #6b7280;
+    }
+
+    .ol-popup-closer:hover {
+      color: #1f2937;
+    }
+
+    .popup-content h4 {
+      margin: 0 0 0.5rem 0;
+      color: #1f2937;
+      font-size: 1rem;
+    }
+
+    .popup-content p {
+      margin: 0.25rem 0;
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+
+    .popup-content .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .badge.connected {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge.disconnected {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge.box {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Loading */
     .loading {
       position: absolute;
       top: 50%;
@@ -290,18 +372,10 @@
       transform: translate(-50%, -50%);
       text-align: center;
       z-index: 1000;
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .loading.hidden {
-      display: none;
     }
 
     .spinner {
-      border: 4px solid #f3f3f3;
+      border: 4px solid #f3f4f6;
       border-top: 4px solid #3b82f6;
       border-radius: 50%;
       width: 40px;
@@ -315,93 +389,14 @@
       100% { transform: rotate(360deg); }
     }
 
-    /* Popup */
-    .ol-popup {
-      position: absolute;
-      background-color: white;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      padding: 1rem;
-      border-radius: 10px;
-      bottom: 12px;
-      left: -50px;
-      min-width: 280px;
+    .hidden {
+      display: none;
     }
 
-    .ol-popup:after {
-      content: "";
-      border-top-color: white;
-      border: 10px solid transparent;
-      position: absolute;
-      top: 100%;
-      left: 48px;
-    }
-
-    .ol-popup-closer {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      color: #6b7280;
-      text-decoration: none;
-    }
-
-    .ol-popup-closer:hover {
-      color: #1f2937;
-    }
-
-    .popup-content h4 {
-      margin: 0 0 0.75rem 0;
-      color: #1f2937;
-      font-size: 1rem;
-    }
-
-    .popup-content p {
-      margin: 0.4rem 0;
-      font-size: 0.85rem;
-      color: #4b5563;
-    }
-
-    .popup-content strong {
-      color: #1f2937;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-top: 0.5rem;
-    }
-
-    .badge.box {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .badge.connected {
-      background: #d1fae5;
-      color: #065f46;
-    }
-
-    .badge.disconnected {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .color-indicator {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-left: 0.5rem;
-      border: 2px solid white;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      vertical-align: middle;
-    }
-
+    /* Alert */
     .alert {
+      padding: 1rem;
       margin-top: 1rem;
-      padding: 0.75rem;
       border-radius: 6px;
       font-size: 0.85rem;
     }
@@ -438,7 +433,6 @@
   <div class="header">
     <h1><i class="fas fa-lightbulb"></i> Peta Penerangan Jalan Umum (PJU)</h1>
     <p>Kabupaten Kediri - Multi Kecamatan</p>
-    <span class="badge"><i class="fas fa-palette"></i> Color-Coded Version 2.0</span>
   </div>
 
   <div class="container">
@@ -505,18 +499,18 @@
         <h3><i class="fas fa-map-marked-alt"></i> Legenda</h3>
 
         <div class="legend-item">
-          <div class="legend-icon gradient"></div>
-          <span>Setiap box punya warna unik</span>
+          <div class="legend-icon box"></div>
+          <span>Box Panel PJU</span>
         </div>
 
-        <div class="legend-item" style="padding-left: 0.5rem; font-size: 0.8rem; color: #6b7280;">
-          <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
-          Lampu mengikuti warna box yang terhubung
+        <div class="legend-item">
+          <div class="legend-icon connected"></div>
+          <span>Lampu Tersambung</span>
         </div>
 
-        <div class="legend-item" style="padding-left: 0.5rem; font-size: 0.8rem; color: #6b7280;">
-          <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
-          Lampu tidak tersambung berwarna abu-abu
+        <div class="legend-item">
+          <div class="legend-icon disconnected"></div>
+          <span>Lampu Tidak Tersambung</span>
         </div>
       </div>
 
@@ -603,15 +597,9 @@
 
         // Hide loading
         document.getElementById('loading').classList.add('hidden');
-
       } catch (error) {
         console.error('Error loading data:', error);
-        document.getElementById('loading').innerHTML = `
-          <div style="color: #ef4444;">
-            <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
-            <p>Gagal memuat data. Pastikan file pju_all_data.json tersedia.</p>
-          </div>
-        `;
+        document.getElementById('loading').innerHTML = '<p style="color: red;">Gagal memuat data. Pastikan file pju_all_data.json tersedia.</p>';
       }
     }
 
@@ -620,52 +608,76 @@
 
       document.getElementById('totalKecamatan').textContent = stats.total_kecamatan;
       document.getElementById('totalBoxes').textContent = stats.total_boxes;
-      document.getElementById('totalLampu').textContent = stats.total_lampu.toLocaleString();
-      document.getElementById('lampuTersambung').textContent = stats.lampu_tersambung.toLocaleString();
-      document.getElementById('lampuTidakTersambung').textContent = stats.lampu_tidak_tersambung.toLocaleString();
-      document.getElementById('persenTersambung').textContent = stats.persentase_tersambung;
+      document.getElementById('totalLampu').textContent = stats.total_lampu;
+      document.getElementById('lampuTersambung').textContent = stats.lampu_tersambung;
+      document.getElementById('lampuTidakTersambung').textContent = stats.lampu_tidak_tersambung;
+      document.getElementById('persenTersambung').textContent = stats.persentase_tersambung.toFixed(1);
     }
 
     function populateFilters() {
-      const filterKecamatan = document.getElementById('filterKecamatan');
-      const uploadKecamatan = document.getElementById('uploadKecamatan');
+      // Kecamatan filter
+      const kecamatanSet = new Set(pjuData.boxes.map(b => b.kecamatan));
+      const kecamatanArray = Array.from(kecamatanSet).sort();
 
-      // Populate kecamatan options
-      pjuData.kecamatan.forEach(kec => {
-        filterKecamatan.innerHTML += `<option value="${kec}">${kec}</option>`;
-        uploadKecamatan.innerHTML += `<option value="${kec}">${kec}</option>`;
+      const selectKec = document.getElementById('filterKecamatan');
+      const uploadKec = document.getElementById('uploadKecamatan');
+
+      kecamatanArray.forEach(kec => {
+        const option1 = document.createElement('option');
+        option1.value = kec;
+        option1.textContent = kec;
+        selectKec.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = kec;
+        option2.textContent = kec;
+        uploadKec.appendChild(option2);
       });
 
-      // Populate desa options
-      filterKecamatan.addEventListener('change', function() {
-        const filterDesa = document.getElementById('filterDesa');
-        filterDesa.innerHTML = '<option value="">Semua Desa</option>';
+      // Desa filter
+      const desaSet = new Set(pjuData.lampu.map(l => l.desa));
+      const desaArray = Array.from(desaSet).sort();
 
-        if (this.value) {
-          const desaSet = new Set();
-          pjuData.lampu.filter(l => l.kecamatan === this.value).forEach(l => desaSet.add(l.desa));
-
-          Array.from(desaSet).sort().forEach(desa => {
-            filterDesa.innerHTML += `<option value="${desa}">${desa}</option>`;
-          });
-        }
+      const selectDesa = document.getElementById('filterDesa');
+      desaArray.forEach(desa => {
+        const option = document.createElement('option');
+        option.value = desa;
+        option.textContent = desa;
+        selectDesa.appendChild(option);
       });
     }
 
     function initMap() {
-      // Create layers with color coding
+      // Popup
+      const container = document.getElementById('popup');
+      const content = document.getElementById('popup-content');
+      const closer = document.getElementById('popup-closer');
+
+      const overlay = new ol.Overlay({
+        element: container,
+        autoPan: {
+          animation: {
+            duration: 250,
+          },
+        },
+      });
+
+      closer.onclick = function () {
+        overlay.setPosition(undefined);
+        closer.blur();
+        return false;
+      };
+
+      // Create layers
       boxLayer = createBoxLayer();
       connectedLayer = createLampuLayer(true);
       disconnectedLayer = createLampuLayer(false);
 
-      // Calculate center from all points
-      const allLon = [...pjuData.boxes.map(b => b.longitude), ...pjuData.lampu.map(l => l.longitude)];
-      const allLat = [...pjuData.boxes.map(b => b.latitude), ...pjuData.lampu.map(l => l.latitude)];
+      // Calculate center (from all boxes)
+      const centerLon = pjuData.boxes.reduce((sum, b) => sum + b.longitude, 0) / pjuData.boxes.length;
+      const centerLat = pjuData.boxes.reduce((sum, b) => sum + b.latitude, 0) / pjuData.boxes.length;
 
-      const centerLon = allLon.reduce((a, b) => a + b, 0) / allLon.length;
-      const centerLat = allLat.reduce((a, b) => a + b, 0) / allLat.length;
-
-      // Create map
+      // Initialize map
       map = new ol.Map({
         target: 'map',
         layers: [
@@ -676,35 +688,15 @@
           connectedLayer,
           boxLayer
         ],
+        overlays: [overlay],
         view: new ol.View({
           center: ol.proj.fromLonLat([centerLon, centerLat]),
           zoom: 12
         })
       });
 
-      // Setup popup
-      const container = document.getElementById('popup');
-      const content = document.getElementById('popup-content');
-      const closer = document.getElementById('popup-closer');
-
-      const overlay = new ol.Overlay({
-        element: container,
-        autoPan: true,
-        autoPanAnimation: {
-          duration: 250
-        }
-      });
-
-      map.addOverlay(overlay);
-
-      closer.onclick = function() {
-        overlay.setPosition(undefined);
-        closer.blur();
-        return false;
-      };
-
-      // Show popup on click
-      map.on('singleclick', function(evt) {
+      // Click handler
+      map.on('click', function (evt) {
         const feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
           return feature;
         });
@@ -715,25 +707,18 @@
 
           let html = '';
           if (props.type === 'box') {
-            const colorIndicator = props.color ?
-              `<span class="color-indicator" style="background: ${props.color};"></span>` : '';
-
             html = `
-              <h4><i class="fas fa-cube"></i> ${props.name} ${colorIndicator}</h4>
+              <h4><i class="fas fa-cube"></i> ${props.name}</h4>
               <p><strong>Kecamatan:</strong> ${props.kecamatan}</p>
               <p><strong>Desa:</strong> ${props.desa}</p>
               <p><strong>Koordinat:</strong> ${props.longitude.toFixed(5)}, ${props.latitude.toFixed(5)}</p>
               <span class="badge box">BOX PANEL</span>
             `;
           } else {
-            const colorIndicator = props.color ?
-              `<span class="color-indicator" style="background: ${props.color};"></span>` : '';
-
             html = `
-              <h4><i class="fas fa-lightbulb"></i> ${props.name} ${colorIndicator}</h4>
+              <h4><i class="fas fa-lightbulb"></i> ${props.name}</h4>
               <p><strong>Kecamatan:</strong> ${props.kecamatan}</p>
               <p><strong>Desa:</strong> ${props.desa}</p>
-              ${props.box_name ? `<p><strong>Box Panel:</strong> ${props.box_name}</p>` : ''}
               <p><strong>Jenis Lampu:</strong> ${props.lampu_type || '-'}</p>
               <p><strong>Jenis Jalan:</strong> ${props.jenis_jalan || '-'}</p>
               <p><strong>Koordinat:</strong> ${props.longitude.toFixed(5)}, ${props.latitude.toFixed(5)}</p>
@@ -774,8 +759,7 @@
           kecamatan: box.kecamatan,
           desa: box.desa,
           longitude: box.longitude,
-          latitude: box.latitude,
-          color: box.color || box.color_hsl || '#ef4444'
+          latitude: box.latitude
         });
 
         return feature;
@@ -785,23 +769,15 @@
         features: features
       });
 
-      // Style function untuk dynamic colors per box
-      const styleFunction = function(feature) {
-        const color = feature.get('color');
-
-        return new ol.style.Style({
-          image: new ol.style.Circle({
-            radius: 9,
-            fill: new ol.style.Fill({ color: color }),
-            stroke: new ol.style.Stroke({ color: 'white', width: 2.5 })
-          }),
-          zIndex: 100
-        });
-      };
-
       return new ol.layer.Vector({
         source: vectorSource,
-        style: styleFunction,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 8,
+            fill: new ol.style.Fill({ color: '#ef4444' }),
+            stroke: new ol.style.Stroke({ color: 'white', width: 2 })
+          })
+        }),
         zIndex: 3
       });
     }
@@ -810,11 +786,6 @@
       const filteredLampu = pjuData.lampu.filter(l => l.connected === connected);
 
       const features = filteredLampu.map(lampu => {
-        // Jika tersambung, gunakan warna box. Jika tidak, gunakan abu-abu
-        const color = connected && lampu.color ?
-          lampu.color :
-          (connected ? '#10b981' : '#9ca3af');
-
         const feature = new ol.Feature({
           geometry: new ol.geom.Point(ol.proj.fromLonLat([lampu.longitude, lampu.latitude])),
           type: 'lampu',
@@ -827,8 +798,7 @@
           jenis_jalan: lampu.jenis_jalan,
           connected: lampu.connected,
           box_name: lampu.box_name,
-          uploaded: false,
-          color: color
+          uploaded: false
         });
 
         return feature;
@@ -838,22 +808,15 @@
         features: features
       });
 
-      // Style function untuk dynamic colors
-      const styleFunction = function(feature) {
-        const color = feature.get('color');
-
-        return new ol.style.Style({
-          image: new ol.style.Circle({
-            radius: 5,
-            fill: new ol.style.Fill({ color: color }),
-            stroke: new ol.style.Stroke({ color: 'white', width: 1.5 })
-          })
-        });
-      };
-
       return new ol.layer.Vector({
         source: vectorSource,
-        style: styleFunction,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 5,
+            fill: new ol.style.Fill({ color: connected ? '#10b981' : '#f59e0b' }),
+            stroke: new ol.style.Stroke({ color: 'white', width: 1 })
+          })
+        }),
         zIndex: connected ? 2 : 1
       });
     }
@@ -934,41 +897,38 @@
 
           let connected = 0;
           let notConnected = 0;
-          const newFeatures = [];
+          const newLampu = [];
 
           for (let i = 0; i < placemarks.length; i++) {
-            const placemark = placemarks[i];
-            const name = placemark.getElementsByTagName('name')[0]?.textContent || '';
-            const coordsText = placemark.getElementsByTagName('coordinates')[0]?.textContent || '';
+            const pm = placemarks[i];
+            const name = pm.getElementsByTagName('name')[0]?.textContent || '';
+            const coords = pm.getElementsByTagName('coordinates')[0]?.textContent || '';
 
-            if (!coordsText) continue;
+            const [lon, lat] = coords.trim().split(',').map(parseFloat);
 
-            const [lon, lat] = coordsText.trim().split(',').map(parseFloat);
             if (isNaN(lon) || isNaN(lat)) continue;
 
-            // Check connection dengan boxes
+            // Check relasi dengan box
             let isConnected = false;
-            let matchedBox = null;
+            let boxId = null;
 
-            for (const box of boxes) {
-              const boxNum = box.box_number;
-              const desa = box.desa.toLowerCase();
+            const boxMatch = name.match(/Box\s*(\d+)/i);
+            if (boxMatch) {
+              const boxNum = `Box ${boxMatch[1]}`;
+              const matchedBox = boxes.find(b => b.box_number === boxNum);
 
-              if (boxNum && name.toLowerCase().includes(`box ${boxNum}`) &&
-                  name.toLowerCase().includes(desa)) {
+              if (matchedBox) {
                 isConnected = true;
-                matchedBox = box;
-                break;
+                boxId = pjuData.boxes.indexOf(matchedBox) + 1;
+                connected++;
+              } else {
+                notConnected++;
               }
-            }
-
-            if (isConnected) {
-              connected++;
             } else {
               notConnected++;
             }
 
-            // Create feature untuk uploaded lampu
+            // Add to map
             const feature = new ol.Feature({
               geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
               type: 'lampu',
@@ -980,29 +940,27 @@
               lampu_type: '',
               jenis_jalan: '',
               connected: isConnected,
-              box_name: matchedBox ? matchedBox.name : 'TIDAK TERSAMBUNG',
-              uploaded: true,
-              color: matchedBox ? matchedBox.color : '#9ca3af'
+              box_name: isConnected ? 'Tersambung' : 'Tidak Tersambung',
+              uploaded: true
             });
 
-            newFeatures.push(feature);
-          }
-
-          // Add to appropriate layer
-          newFeatures.forEach(f => {
-            if (f.get('connected')) {
-              connectedLayer.getSource().addFeature(f);
+            if (isConnected) {
+              connectedLayer.getSource().addFeature(feature);
             } else {
-              disconnectedLayer.getSource().addFeature(f);
+              disconnectedLayer.getSource().addFeature(feature);
             }
-          });
+
+            newLampu.push({
+              name, lon, lat, connected: isConnected
+            });
+          }
 
           uploadResult.innerHTML = `
             <div class="alert success">
               <strong>Analisis Selesai!</strong><br>
-              Total: ${newFeatures.length} lampu<br>
+              Total: ${newLampu.length} lampu<br>
               Tersambung: ${connected}<br>
-              Tidak tersambung: ${notConnected}
+              Tidak Tersambung: ${notConnected}
             </div>
           `;
 
@@ -1011,17 +969,13 @@
           btnAnalyze.disabled = true;
 
         } catch (error) {
-          uploadResult.innerHTML = `
-            <div class="alert error">
-              <strong>Error:</strong> ${error.message}
-            </div>
-          `;
+          uploadResult.innerHTML = `<div class="alert error">Error: ${error.message}</div>`;
         }
       });
     }
 
-    // Initialize on load
-    window.addEventListener('load', loadData);
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', loadData);
   </script>
 </body>
 </html>
