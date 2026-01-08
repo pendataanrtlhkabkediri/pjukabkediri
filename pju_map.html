@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peta PJU Kecamatan Kunjang - Kabupaten Kediri</title>
+
+  <!-- OpenLayers CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.5.2/ol.css">
+
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 120px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 350px;
+      background: white;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stats {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .stats h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+    }
+
+    .stat-card {
+      background: #f9fafb;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .stat-card.box {
+      border-left-color: #ef4444;
+    }
+
+    .stat-card.connected {
+      border-left-color: #10b981;
+    }
+
+    .stat-card.disconnected {
+      border-left-color: #f59e0b;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+
+    .legend {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .legend h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .legend-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 2px solid white;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+
+    .legend-icon.box {
+      background: #ef4444;
+    }
+
+    .legend-icon.connected {
+      background: #10b981;
+    }
+
+    .legend-icon.disconnected {
+      background: #f59e0b;
+    }
+
+    .filters {
+      padding: 1.5rem;
+      flex: 1;
+    }
+
+    .filters h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+    }
+
+    .filter-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+
+    .filter-group select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      font-weight: normal;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+
+    /* Map */
+    #map {
+      flex: 1;
+      position: relative;
+    }
+
+    /* Popup */
+    .ol-popup {
+      position: absolute;
+      background-color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      bottom: 12px;
+      left: -50px;
+      min-width: 280px;
+      max-width: 400px;
+    }
+
+    .ol-popup:after, .ol-popup:before {
+      top: 100%;
+      border: solid transparent;
+      content: " ";
+      height: 0;
+      width: 0;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .ol-popup:after {
+      border-top-color: white;
+      border-width: 10px;
+      left: 48px;
+      margin-left: -10px;
+    }
+
+    .ol-popup:before {
+      border-top-color: #e5e7eb;
+      border-width: 11px;
+      left: 48px;
+      margin-left: -11px;
+    }
+
+    .ol-popup-closer {
+      text-decoration: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.2rem;
+      color: #6b7280;
+    }
+
+    .ol-popup-closer:hover {
+      color: #1f2937;
+    }
+
+    .popup-content h4 {
+      margin: 0 0 0.5rem 0;
+      color: #1f2937;
+      font-size: 1rem;
+    }
+
+    .popup-content p {
+      margin: 0.25rem 0;
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+
+    .popup-content .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .badge.connected {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge.disconnected {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge.box {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+      }
+
+      #map {
+        height: 60vh;
+      }
+    }
+
+    /* Loading */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 1000;
+    }
+
+    .spinner {
+      border: 4px solid #f3f4f6;
+      border-top: 4px solid #3b82f6;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><i class="fas fa-lightbulb"></i> Peta Penerangan Jalan Umum (PJU)</h1>
+    <p>Kecamatan Kunjang - Kabupaten Kediri</p>
+  </div>
+
+  <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Statistics -->
+      <div class="stats">
+        <h3><i class="fas fa-chart-bar"></i> Statistik</h3>
+
+        <div class="stat-card box">
+          <div class="stat-value" id="totalBoxes">-</div>
+          <div class="stat-label">Total Box Panel</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-value" id="totalLampu">-</div>
+          <div class="stat-label">Total Lampu PJU</div>
+        </div>
+
+        <div class="stat-card connected">
+          <div class="stat-value" id="lampuTersambung">-</div>
+          <div class="stat-label">Lampu Tersambung (<span id="persenTersambung">-</span>%)</div>
+        </div>
+
+        <div class="stat-card disconnected">
+          <div class="stat-value" id="lampuTidakTersambung">-</div>
+          <div class="stat-label">Lampu Tidak Tersambung (<span id="persenTidakTersambung">-</span>%)</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <h3><i class="fas fa-map-marked-alt"></i> Legenda</h3>
+
+        <div class="legend-item">
+          <div class="legend-icon box"></div>
+          <span>Box Panel PJU</span>
+        </div>
+
+        <div class="legend-item">
+          <div class="legend-icon connected"></div>
+          <span>Lampu Tersambung</span>
+        </div>
+
+        <div class="legend-item">
+          <div class="legend-icon disconnected"></div>
+          <span>Lampu Tidak Tersambung</span>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <h3><i class="fas fa-filter"></i> Filter</h3>
+
+        <div class="filter-group">
+          <label>Desa</label>
+          <select id="filterDesa">
+            <option value="">Semua Desa</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Tampilkan</label>
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="showBoxes" checked>
+              Box Panel
+            </label>
+            <label>
+              <input type="checkbox" id="showConnected" checked>
+              Lampu Tersambung
+            </label>
+            <label>
+              <input type="checkbox" id="showDisconnected" checked>
+              Lampu Tidak Tersambung
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map">
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Memuat data peta...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup -->
+  <div id="popup" class="ol-popup">
+    <a href="#" id="popup-closer" class="ol-popup-closer"><i class="fas fa-times"></i></a>
+    <div id="popup-content" class="popup-content"></div>
+  </div>
+
+  <!-- OpenLayers JS -->
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.5.2/dist/ol.js"></script>
+
+  <script>
+    let pjuData = null;
+    let map = null;
+    let boxLayer = null;
+    let connectedLayer = null;
+    let disconnectedLayer = null;
+
+    // Load JSON data
+    async function loadData() {
+      try {
+        const response = await fetch('pju_data.json');
+        pjuData = await response.json();
+
+        console.log('Data loaded:', pjuData);
+
+        // Update statistics
+        updateStatistics();
+
+        // Populate desa filter
+        populateDesaFilter();
+
+        // Initialize map
+        initMap();
+
+        // Hide loading
+        document.getElementById('loading').classList.add('hidden');
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('loading').innerHTML = '<p style="color: red;">Gagal memuat data. Pastikan file pju_data.json tersedia.</p>';
+      }
+    }
+
+    function updateStatistics() {
+      const stats = pjuData.statistics;
+
+      document.getElementById('totalBoxes').textContent = stats.total_boxes;
+      document.getElementById('totalLampu').textContent = stats.total_lampu;
+      document.getElementById('lampuTersambung').textContent = stats.lampu_tersambung;
+      document.getElementById('lampuTidakTersambung').textContent = stats.lampu_tidak_tersambung;
+      document.getElementById('persenTersambung').textContent = stats.persentase_tersambung.toFixed(1);
+      document.getElementById('persenTidakTersambung').textContent = (100 - stats.persentase_tersambung).toFixed(1);
+    }
+
+    function populateDesaFilter() {
+      const desaSet = new Set(pjuData.lampu.map(l => l.desa));
+      const desaArray = Array.from(desaSet).sort();
+
+      const select = document.getElementById('filterDesa');
+      desaArray.forEach(desa => {
+        const option = document.createElement('option');
+        option.value = desa;
+        option.textContent = desa;
+        select.appendChild(option);
+      });
+    }
+
+    function initMap() {
+      // Popup
+      const container = document.getElementById('popup');
+      const content = document.getElementById('popup-content');
+      const closer = document.getElementById('popup-closer');
+
+      const overlay = new ol.Overlay({
+        element: container,
+        autoPan: {
+          animation: {
+            duration: 250,
+          },
+        },
+      });
+
+      closer.onclick = function () {
+        overlay.setPosition(undefined);
+        closer.blur();
+        return false;
+      };
+
+      // Create layers
+      boxLayer = createBoxLayer();
+      connectedLayer = createLampuLayer(true);
+      disconnectedLayer = createLampuLayer(false);
+
+      // Calculate center
+      const centerLon = pjuData.boxes.reduce((sum, b) => sum + b.longitude, 0) / pjuData.boxes.length;
+      const centerLat = pjuData.boxes.reduce((sum, b) => sum + b.latitude, 0) / pjuData.boxes.length;
+
+      // Initialize map
+      map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          }),
+          disconnectedLayer,
+          connectedLayer,
+          boxLayer
+        ],
+        overlays: [overlay],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([centerLon, centerLat]),
+          zoom: 13
+        })
+      });
+
+      // Click handler
+      map.on('click', function (evt) {
+        const feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+          return feature;
+        });
+
+        if (feature) {
+          const props = feature.getProperties();
+          const coordinate = evt.coordinate;
+
+          let html = '';
+          if (props.type === 'box') {
+            html = `
+              <h4><i class="fas fa-cube"></i> ${props.name}</h4>
+              <p><strong>Koordinat:</strong> ${props.longitude.toFixed(5)}, ${props.latitude.toFixed(5)}</p>
+              <span class="badge box">BOX PANEL</span>
+            `;
+          } else {
+            html = `
+              <h4><i class="fas fa-lightbulb"></i> ${props.name}</h4>
+              <p><strong>Desa:</strong> ${props.desa}</p>
+              <p><strong>Jenis Lampu:</strong> ${props.lampu_type || '-'}</p>
+              <p><strong>Jenis Jalan:</strong> ${props.jenis_jalan || '-'}</p>
+              <p><strong>Koordinat:</strong> ${props.longitude.toFixed(5)}, ${props.latitude.toFixed(5)}</p>
+              <span class="badge ${props.connected ? 'connected' : 'disconnected'}">
+                ${props.connected ? 'TERSAMBUNG' : 'TIDAK TERSAMBUNG'}
+              </span>
+            `;
+          }
+
+          content.innerHTML = html;
+          overlay.setPosition(coordinate);
+        } else {
+          overlay.setPosition(undefined);
+        }
+      });
+
+      // Change cursor on hover
+      map.on('pointermove', function (e) {
+        const pixel = map.getEventPixel(e.originalEvent);
+        const hit = map.hasFeatureAtPixel(pixel);
+        map.getTarget().style.cursor = hit ? 'pointer' : '';
+      });
+
+      // Setup filters
+      setupFilters();
+    }
+
+    function createBoxLayer() {
+      const features = pjuData.boxes.map(box => {
+        const feature = new ol.Feature({
+          geometry: new ol.geom.Point(ol.proj.fromLonLat([box.longitude, box.latitude])),
+          type: 'box',
+          name: box.name,
+          longitude: box.longitude,
+          latitude: box.latitude
+        });
+
+        return feature;
+      });
+
+      const vectorSource = new ol.source.Vector({
+        features: features
+      });
+
+      return new ol.layer.Vector({
+        source: vectorSource,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 8,
+            fill: new ol.style.Fill({ color: '#ef4444' }),
+            stroke: new ol.style.Stroke({ color: 'white', width: 2 })
+          })
+        }),
+        zIndex: 3
+      });
+    }
+
+    function createLampuLayer(connected) {
+      const filteredLampu = pjuData.lampu.filter(l => l.connected === connected);
+
+      const features = filteredLampu.map(lampu => {
+        const feature = new ol.Feature({
+          geometry: new ol.geom.Point(ol.proj.fromLonLat([lampu.longitude, lampu.latitude])),
+          type: 'lampu',
+          name: lampu.name,
+          desa: lampu.desa,
+          longitude: lampu.longitude,
+          latitude: lampu.latitude,
+          lampu_type: lampu.lampu_type,
+          jenis_jalan: lampu.jenis_jalan,
+          connected: lampu.connected,
+          box_name: lampu.box_name
+        });
+
+        return feature;
+      });
+
+      const vectorSource = new ol.source.Vector({
+        features: features
+      });
+
+      return new ol.layer.Vector({
+        source: vectorSource,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 5,
+            fill: new ol.style.Fill({ color: connected ? '#10b981' : '#f59e0b' }),
+            stroke: new ol.style.Stroke({ color: 'white', width: 1 })
+          })
+        }),
+        zIndex: connected ? 2 : 1
+      });
+    }
+
+    function setupFilters() {
+      const filterDesa = document.getElementById('filterDesa');
+      const showBoxes = document.getElementById('showBoxes');
+      const showConnected = document.getElementById('showConnected');
+      const showDisconnected = document.getElementById('showDisconnected');
+
+      function applyFilters() {
+        const selectedDesa = filterDesa.value;
+
+        // Filter by desa
+        if (selectedDesa) {
+          connectedLayer.getSource().getFeatures().forEach(f => {
+            f.setStyle(f.get('desa') === selectedDesa ? undefined : new ol.style.Style({}));
+          });
+          disconnectedLayer.getSource().getFeatures().forEach(f => {
+            f.setStyle(f.get('desa') === selectedDesa ? undefined : new ol.style.Style({}));
+          });
+        } else {
+          connectedLayer.getSource().getFeatures().forEach(f => f.setStyle(undefined));
+          disconnectedLayer.getSource().getFeatures().forEach(f => f.setStyle(undefined));
+        }
+
+        // Show/hide layers
+        boxLayer.setVisible(showBoxes.checked);
+        connectedLayer.setVisible(showConnected.checked);
+        disconnectedLayer.setVisible(showDisconnected.checked);
+      }
+
+      filterDesa.addEventListener('change', applyFilters);
+      showBoxes.addEventListener('change', applyFilters);
+      showConnected.addEventListener('change', applyFilters);
+      showDisconnected.addEventListener('change', applyFilters);
+    }
+
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>

@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peta PJU Kabupaten Kediri</title>
+
+  <!-- OpenLayers CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.5.2/ol.css">
+
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 120px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 380px;
+      background: white;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stats {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .stats h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .stat-card {
+      background: #f9fafb;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .stat-card.box {
+      border-left-color: #ef4444;
+    }
+
+    .stat-card.connected {
+      border-left-color: #10b981;
+    }
+
+    .stat-card.disconnected {
+      border-left-color: #f59e0b;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+
+    /* Upload Section */
+    .upload-section {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fef3c7;
+    }
+
+    .upload-section h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .upload-box {
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .upload-box:hover {
+      border-color: #3b82f6;
+      background: #f9fafb;
+    }
+
+    .upload-box input[type="file"] {
+      display: none;
+    }
+
+    .upload-icon {
+      font-size: 2rem;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+
+    .upload-text {
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+
+    .select-kecamatan {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .btn-upload {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-upload:hover {
+      background: #2563eb;
+    }
+
+    .btn-upload:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .legend {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .legend h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .legend-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 2px solid white;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+
+    .legend-icon.box {
+      background: #ef4444;
+    }
+
+    .legend-icon.connected {
+      background: #10b981;
+    }
+
+    .legend-icon.disconnected {
+      background: #f59e0b;
+    }
+
+    .filters {
+      padding: 1.5rem;
+      flex: 1;
+    }
+
+    .filters h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #1f2937;
+    }
+
+    .filter-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+
+    .filter-group select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      font-weight: normal;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+
+    /* Map */
+    #map {
+      flex: 1;
+      position: relative;
+    }
+
+    /* Popup */
+    .ol-popup {
+      position: absolute;
+      background-color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      bottom: 12px;
+      left: -50px;
+      min-width: 280px;
+      max-width: 400px;
+    }
+
+    .ol-popup:after, .ol-popup:before {
+      top: 100%;
+      border: solid transparent;
+      content: " ";
+      height: 0;
+      width: 0;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .ol-popup:after {
+      border-top-color: white;
+      border-width: 10px;
+      left: 48px;
+      margin-left: -10px;
+    }
+
+    .ol-popup:before {
+      border-top-color: #e5e7eb;
+      border-width: 11px;
+      left: 48px;
+      margin-left: -11px;
+    }
+
+    .ol-popup-closer {
+      text-decoration: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.2rem;
+      color: #6b7280;
+    }
+
+    .ol-popup-closer:hover {
+      color: #1f2937;
+    }
+
+    .popup-content h4 {
+      margin: 0 0 0.5rem 0;
+      color: #1f2937;
+      font-size: 1rem;
+    }
+
+    .popup-content p {
+      margin: 0.25rem 0;
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+
+    .popup-content .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .badge.connected {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge.disconnected {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge.box {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Loading */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 1000;
+    }
+
+    .spinner {
+      border: 4px solid #f3f4f6;
+      border-top: 4px solid #3b82f6;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Alert */
+    .alert {
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .alert.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .alert.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 50vh;
+      }
+
+      #map {
+        height: 50vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><i class="fas fa-lightbulb"></i> Peta Penerangan Jalan Umum (PJU)</h1>
+    <p>Kabupaten Kediri - Multi Kecamatan</p>
+  </div>
+
+  <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Statistics -->
+      <div class="stats">
+        <h3><i class="fas fa-chart-bar"></i> Statistik</h3>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="totalKecamatan">-</div>
+            <div class="stat-label">Kecamatan</div>
+          </div>
+
+          <div class="stat-card box">
+            <div class="stat-value" id="totalBoxes">-</div>
+            <div class="stat-label">Box Panel</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-value" id="totalLampu">-</div>
+            <div class="stat-label">Total Lampu</div>
+          </div>
+
+          <div class="stat-card connected">
+            <div class="stat-value" id="lampuTersambung">-</div>
+            <div class="stat-label">Tersambung (<span id="persenTersambung">-</span>%)</div>
+          </div>
+
+          <div class="stat-card disconnected">
+            <div class="stat-value" id="lampuTidakTersambung">-</div>
+            <div class="stat-label">Tidak Tersambung</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Section -->
+      <div class="upload-section">
+        <h3><i class="fas fa-cloud-upload-alt"></i> Upload KML Desa Baru</h3>
+
+        <select id="uploadKecamatan" class="select-kecamatan">
+          <option value="">Pilih Kecamatan</option>
+        </select>
+
+        <label for="fileUpload" class="upload-box">
+          <div class="upload-icon"><i class="fas fa-file-upload"></i></div>
+          <div class="upload-text">
+            Klik atau drag file KML di sini<br>
+            <small>File akan dianalisis secara otomatis</small>
+          </div>
+          <input type="file" id="fileUpload" accept=".kml">
+        </label>
+
+        <button class="btn-upload" id="btnAnalyze" disabled>
+          <i class="fas fa-search"></i> Analisis Relasi
+        </button>
+
+        <div id="uploadResult"></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <h3><i class="fas fa-map-marked-alt"></i> Legenda</h3>
+
+        <div class="legend-item">
+          <div class="legend-icon box"></div>
+          <span>Box Panel PJU</span>
+        </div>
+
+        <div class="legend-item">
+          <div class="legend-icon connected"></div>
+          <span>Lampu Tersambung</span>
+        </div>
+
+        <div class="legend-item">
+          <div class="legend-icon disconnected"></div>
+          <span>Lampu Tidak Tersambung</span>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <h3><i class="fas fa-filter"></i> Filter</h3>
+
+        <div class="filter-group">
+          <label>Kecamatan</label>
+          <select id="filterKecamatan">
+            <option value="">Semua Kecamatan</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Desa</label>
+          <select id="filterDesa">
+            <option value="">Semua Desa</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Tampilkan</label>
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="showBoxes" checked>
+              Box Panel
+            </label>
+            <label>
+              <input type="checkbox" id="showConnected" checked>
+              Lampu Tersambung
+            </label>
+            <label>
+              <input type="checkbox" id="showDisconnected" checked>
+              Lampu Tidak Tersambung
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map">
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Memuat data peta...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup -->
+  <div id="popup" class="ol-popup">
+    <a href="#" id="popup-closer" class="ol-popup-closer"><i class="fas fa-times"></i></a>
+    <div id="popup-content" class="popup-content"></div>
+  </div>
+
+  <!-- OpenLayers JS -->
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.5.2/dist/ol.js"></script>
+
+  <script>
+    let pjuData = null;
+    let map = null;
+    let boxLayer = null;
+    let connectedLayer = null;
+    let disconnectedLayer = null;
+    let uploadedKMLData = [];
+
+    // Load JSON data
+    async function loadData() {
+      try {
+        const response = await fetch('pju_all_data.json');
+        pjuData = await response.json();
+
+        console.log('Data loaded:', pjuData);
+
+        // Update statistics
+        updateStatistics();
+
+        // Populate filters
+        populateFilters();
+
+        // Initialize map
+        initMap();
+
+        // Hide loading
+        document.getElementById('loading').classList.add('hidden');
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('loading').innerHTML = '<p style="color: red;">Gagal memuat data. Pastikan file pju_all_data.json tersedia.</p>';
+      }
+    }
+
+    function updateStatistics() {
+      const stats = pjuData.statistics;
+
+      document.getElementById('totalKecamatan').textContent = stats.total_kecamatan;
+      document.getElementById('totalBoxes').textContent = stats.total_boxes;
+      document.getElementById('totalLampu').textContent = stats.total_lampu;
+      document.getElementById('lampuTersambung').textContent = stats.lampu_tersambung;
+      document.getElementById('lampuTidakTersambung').textContent = stats.lampu_tidak_tersambung;
+      document.getElementById('persenTersambung').textContent = stats.persentase_tersambung.toFixed(1);
+    }
+
+    function populateFilters() {
+      // Kecamatan filter
+      const kecamatanSet = new Set(pjuData.boxes.map(b => b.kecamatan));
+      const kecamatanArray = Array.from(kecamatanSet).sort();
+
+      const selectKec = document.getElementById('filterKecamatan');
+      const uploadKec = document.getElementById('uploadKecamatan');
+
+      kecamatanArray.forEach(kec => {
+        const option1 = document.createElement('option');
+        option1.value = kec;
+        option1.textContent = kec;
+        selectKec.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = kec;
+        option2.textContent = kec;
+        uploadKec.appendChild(option2);
+      });
+
+      // Desa filter
+      const desaSet = new Set(pjuData.lampu.map(l => l.desa));
+      const desaArray = Array.from(desaSet).sort();
+
+      const selectDesa = document.getElementById('filterDesa');
+      desaArray.forEach(desa => {
+        const option = document.createElement('option');
+        option.value = desa;
+        option.textContent = desa;
+        selectDesa.appendChild(option);
+      });
+    }
+
+    function initMap() {
+      // Popup
+      const container = document.getElementById('popup');
+      const content = document.getElementById('popup-content');
+      const closer = document.getElementById('popup-closer');
+
+      const overlay = new ol.Overlay({
+        element: container,
+        autoPan: {
+          animation: {
+            duration: 250,
+          },
+        },
+      });
+
+      closer.onclick = function () {
+        overlay.setPosition(undefined);
+        closer.blur();
+        return false;
+      };
+
+      // Create layers
+      boxLayer = createBoxLayer();
+      connectedLayer = createLampuLayer(true);
+      disconnectedLayer = createLampuLayer(false);
+
+      // Calculate center (from all boxes)
+      const centerLon = pjuData.boxes.reduce((sum, b) => sum + b.longitude, 0) / pjuData.boxes.length;
+      const centerLat = pjuData.boxes.reduce((sum, b) => sum + b.latitude, 0) / pjuData.boxes.length;
+
+      // Initialize map
+      map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          }),
+          disconnectedLayer,
+          connectedLayer,
+          boxLayer
+        ],
+        overlays: [overlay],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([centerLon, centerLat]),
+          zoom: 12
+        })
+      });
+
+      // Click handler
+      map.on('click', function (evt) {
+        const feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+          return feature;
+        });
+
+        if (feature) {
+          const props = feature.getProperties();
+          const coordinate = evt.coordinate;
+
+          let html = '';
+          if (props.type === 'box') {
+            html = `
+              <h4><i class="fas fa-cube"></i> ${props.name}</h4>
+              <p><strong>Kecamatan:</strong> ${props.kecamatan}</p>
+              <p><strong>Desa:</strong> ${props.desa}</p>
+              <p><strong>Koordinat:</strong> ${props.longitude.toFixed(5)}, ${props.latitude.toFixed(5)}</p>
+              <span class="badge box">BOX PANEL</span>
+            `;
+          } else {
+            html = `
+              <h4><i class="fas fa-lightbulb"></i> ${props.name}</h4>
+              <p><strong>Kecamatan:</strong> ${props.kecamatan}</p>
+              <p><strong>Desa:</strong> ${props.desa}</p>
+              <p><strong>Jenis Lampu:</strong> ${props.lampu_type || '-'}</p>
+              <p><strong>Jenis Jalan:</strong> ${props.jenis_jalan || '-'}</p>
+              <p><strong>Koordinat:</strong> ${props.longitude.toFixed(5)}, ${props.latitude.toFixed(5)}</p>
+              <span class="badge ${props.connected ? 'connected' : 'disconnected'}">
+                ${props.connected ? 'TERSAMBUNG' : 'TIDAK TERSAMBUNG'}
+              </span>
+              ${props.uploaded ? '<span class="badge" style="background: #dbeafe; color: #1e40af; margin-left: 0.5rem;">UPLOADED</span>' : ''}
+            `;
+          }
+
+          content.innerHTML = html;
+          overlay.setPosition(coordinate);
+        } else {
+          overlay.setPosition(undefined);
+        }
+      });
+
+      // Change cursor on hover
+      map.on('pointermove', function (e) {
+        const pixel = map.getEventPixel(e.originalEvent);
+        const hit = map.hasFeatureAtPixel(pixel);
+        map.getTarget().style.cursor = hit ? 'pointer' : '';
+      });
+
+      // Setup filters
+      setupFilters();
+
+      // Setup upload
+      setupUpload();
+    }
+
+    function createBoxLayer() {
+      const features = pjuData.boxes.map(box => {
+        const feature = new ol.Feature({
+          geometry: new ol.geom.Point(ol.proj.fromLonLat([box.longitude, box.latitude])),
+          type: 'box',
+          name: box.name,
+          kecamatan: box.kecamatan,
+          desa: box.desa,
+          longitude: box.longitude,
+          latitude: box.latitude
+        });
+
+        return feature;
+      });
+
+      const vectorSource = new ol.source.Vector({
+        features: features
+      });
+
+      return new ol.layer.Vector({
+        source: vectorSource,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 8,
+            fill: new ol.style.Fill({ color: '#ef4444' }),
+            stroke: new ol.style.Stroke({ color: 'white', width: 2 })
+          })
+        }),
+        zIndex: 3
+      });
+    }
+
+    function createLampuLayer(connected) {
+      const filteredLampu = pjuData.lampu.filter(l => l.connected === connected);
+
+      const features = filteredLampu.map(lampu => {
+        const feature = new ol.Feature({
+          geometry: new ol.geom.Point(ol.proj.fromLonLat([lampu.longitude, lampu.latitude])),
+          type: 'lampu',
+          name: lampu.name,
+          kecamatan: lampu.kecamatan,
+          desa: lampu.desa,
+          longitude: lampu.longitude,
+          latitude: lampu.latitude,
+          lampu_type: lampu.lampu_type,
+          jenis_jalan: lampu.jenis_jalan,
+          connected: lampu.connected,
+          box_name: lampu.box_name,
+          uploaded: false
+        });
+
+        return feature;
+      });
+
+      const vectorSource = new ol.source.Vector({
+        features: features
+      });
+
+      return new ol.layer.Vector({
+        source: vectorSource,
+        style: new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 5,
+            fill: new ol.style.Fill({ color: connected ? '#10b981' : '#f59e0b' }),
+            stroke: new ol.style.Stroke({ color: 'white', width: 1 })
+          })
+        }),
+        zIndex: connected ? 2 : 1
+      });
+    }
+
+    function setupFilters() {
+      const filterKecamatan = document.getElementById('filterKecamatan');
+      const filterDesa = document.getElementById('filterDesa');
+      const showBoxes = document.getElementById('showBoxes');
+      const showConnected = document.getElementById('showConnected');
+      const showDisconnected = document.getElementById('showDisconnected');
+
+      function applyFilters() {
+        const selectedKec = filterKecamatan.value;
+        const selectedDesa = filterDesa.value;
+
+        // Filter boxes
+        boxLayer.getSource().getFeatures().forEach(f => {
+          const show = (!selectedKec || f.get('kecamatan') === selectedKec);
+          f.setStyle(show ? undefined : new ol.style.Style({}));
+        });
+
+        // Filter lampu
+        [connectedLayer, disconnectedLayer].forEach(layer => {
+          layer.getSource().getFeatures().forEach(f => {
+            const showKec = !selectedKec || f.get('kecamatan') === selectedKec;
+            const showDesa = !selectedDesa || f.get('desa') === selectedDesa;
+            f.setStyle((showKec && showDesa) ? undefined : new ol.style.Style({}));
+          });
+        });
+
+        // Show/hide layers
+        boxLayer.setVisible(showBoxes.checked);
+        connectedLayer.setVisible(showConnected.checked);
+        disconnectedLayer.setVisible(showDisconnected.checked);
+      }
+
+      filterKecamatan.addEventListener('change', applyFilters);
+      filterDesa.addEventListener('change', applyFilters);
+      showBoxes.addEventListener('change', applyFilters);
+      showConnected.addEventListener('change', applyFilters);
+      showDisconnected.addEventListener('change', applyFilters);
+    }
+
+    function setupUpload() {
+      const fileInput = document.getElementById('fileUpload');
+      const btnAnalyze = document.getElementById('btnAnalyze');
+      const uploadKecamatan = document.getElementById('uploadKecamatan');
+      const uploadResult = document.getElementById('uploadResult');
+
+      fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0 && uploadKecamatan.value) {
+          btnAnalyze.disabled = false;
+        }
+      });
+
+      uploadKecamatan.addEventListener('change', function() {
+        if (fileInput.files.length > 0 && this.value) {
+          btnAnalyze.disabled = false;
+        }
+      });
+
+      btnAnalyze.addEventListener('click', async function() {
+        const file = fileInput.files[0];
+        const kecamatan = uploadKecamatan.value;
+
+        if (!file || !kecamatan) return;
+
+        uploadResult.innerHTML = '<div class="alert">Menganalisis file KML...</div>';
+
+        try {
+          const text = await file.text();
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(text, 'text/xml');
+
+          // Parse KML
+          const placemarks = xmlDoc.getElementsByTagName('Placemark');
+          const boxes = pjuData.boxes.filter(b => b.kecamatan === kecamatan);
+
+          let connected = 0;
+          let notConnected = 0;
+          const newLampu = [];
+
+          for (let i = 0; i < placemarks.length; i++) {
+            const pm = placemarks[i];
+            const name = pm.getElementsByTagName('name')[0]?.textContent || '';
+            const coords = pm.getElementsByTagName('coordinates')[0]?.textContent || '';
+
+            const [lon, lat] = coords.trim().split(',').map(parseFloat);
+
+            if (isNaN(lon) || isNaN(lat)) continue;
+
+            // Check relasi dengan box
+            let isConnected = false;
+            let boxId = null;
+
+            const boxMatch = name.match(/Box\s*(\d+)/i);
+            if (boxMatch) {
+              const boxNum = `Box ${boxMatch[1]}`;
+              const matchedBox = boxes.find(b => b.box_number === boxNum);
+
+              if (matchedBox) {
+                isConnected = true;
+                boxId = pjuData.boxes.indexOf(matchedBox) + 1;
+                connected++;
+              } else {
+                notConnected++;
+              }
+            } else {
+              notConnected++;
+            }
+
+            // Add to map
+            const feature = new ol.Feature({
+              geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
+              type: 'lampu',
+              name: name,
+              kecamatan: kecamatan,
+              desa: 'Uploaded',
+              longitude: lon,
+              latitude: lat,
+              lampu_type: '',
+              jenis_jalan: '',
+              connected: isConnected,
+              box_name: isConnected ? 'Tersambung' : 'Tidak Tersambung',
+              uploaded: true
+            });
+
+            if (isConnected) {
+              connectedLayer.getSource().addFeature(feature);
+            } else {
+              disconnectedLayer.getSource().addFeature(feature);
+            }
+
+            newLampu.push({
+              name, lon, lat, connected: isConnected
+            });
+          }
+
+          uploadResult.innerHTML = `
+            <div class="alert success">
+              <strong>Analisis Selesai!</strong><br>
+              Total: ${newLampu.length} lampu<br>
+              Tersambung: ${connected}<br>
+              Tidak Tersambung: ${notConnected}
+            </div>
+          `;
+
+          // Reset
+          fileInput.value = '';
+          btnAnalyze.disabled = true;
+
+        } catch (error) {
+          uploadResult.innerHTML = `<div class="alert error">Error: ${error.message}</div>`;
+        }
+      });
+    }
+
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>
